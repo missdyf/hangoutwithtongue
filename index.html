@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>走味關係報價單</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@400;600;700&display=swap">
+<style>
+/* Layout: form column on the left, a scaled A4 sheet pinned on the right that redraws on every keystroke */
+:root{
+  --bg:#eef0ee; --panel:#ffffff; --fg:#1f2522; --muted:#66706b; --line:#d6dbd8;
+  --accent:#2f5d50; --accent-soft:#e1ebe7; --paid:#2f7a4f; --unpaid:#b0472f;
+  --paper:#ffffff; --ink:#111;
+  --ui:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --doc:"Noto Serif TC","PMingLiU","Songti TC",serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#161a18; --panel:#1f2522; --fg:#e6ebe8; --muted:#9aa49f; --line:#343c38;
+  --accent:#7fbfa9; --accent-soft:#25332e; --paid:#6fcf97; --unpaid:#ef8a70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#161a18; --panel:#1f2522; --fg:#e6ebe8; --muted:#9aa49f; --line:#343c38;
+  --accent:#7fbfa9; --accent-soft:#25332e; --paid:#6fcf97; --unpaid:#ef8a70; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:14px}
+.app{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:24px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px;max-width:1500px;margin:0 auto}
+@media (max-width:900px){.app{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- form ---------- */
+.form{display:flex;flex-direction:column;gap:14px;min-width:0}
+.head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.head h1{font-size:18px;margin:0;text-wrap:balance}
+.head p{margin:2px 0 0;color:var(--muted);font-size:12px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:6px 12px;border-radius:6px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+button.primary:hover{color:var(--panel);filter:brightness(1.08)}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+fieldset{border:1px solid var(--line);background:var(--panel);border-radius:8px;margin:0;padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+legend{font-weight:700;font-size:13px;padding:0 6px;color:var(--accent);letter-spacing:.04em}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+input,textarea,select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:70px;line-height:1.55}
+input[type=number]{font-variant-numeric:tabular-nums}
+.item{border-top:1px dashed var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.item:first-of-type{border-top:0;padding-top:0}
+.item-title{display:flex;justify-content:space-between;align-items:baseline;font-weight:600;font-size:13px}
+.item-title span{font-variant-numeric:tabular-nums;color:var(--accent)}
+.hint{font-size:11.5px;color:var(--muted);margin:0}
+.pay{display:flex;gap:6px;flex-wrap:wrap}
+.pay input{position:absolute;opacity:0;pointer-events:none}
+.pay label{flex-direction:row;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:13px;color:var(--fg)}
+.pay input:checked+label{border-color:currentColor;font-weight:600}
+.pay input:checked+label.p{color:var(--paid);background:var(--accent-soft)}
+.pay input:checked+label.u{color:var(--unpaid)}
+.pay input:focus-visible+label{outline:2px solid var(--accent)}
+.tl{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px;align-items:center}
+.tl span{font-size:13px}
+.sum{display:flex;justify-content:space-between;align-items:baseline;background:var(--accent-soft);border-radius:6px;padding:8px 12px;font-variant-numeric:tabular-nums}
+.sum b{font-size:18px;color:var(--accent)}
+.toast{font-size:12px;color:var(--paid);min-height:1em}
+
+/* ---------- preview ---------- */
+.preview{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;min-width:0}
+.preview-bar{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:8px}
+.stage{overflow:hidden;border-radius:4px}
+.sheet-wrap{transform-origin:top left}
+.sheet{width:794px;min-height:1123px;background:var(--paper);color:var(--ink);font-family:var(--doc);
+  padding:56px 56px 48px;box-shadow:0 2px 14px rgba(0,0,0,.18);font-size:15px;line-height:1.6}
+.sheet .date{text-align:right;font-family:var(--ui);font-size:13px}
+.sheet h2{font-size:21px;font-weight:600;margin:28px 0 22px}
+.sheet .meta{display:grid;grid-template-columns:1fr 1fr;gap:0 40px;margin-bottom:16px}
+.sheet .meta div{min-height:1.6em}
+.sheet table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.svc th{font-weight:400;text-align:left;padding:4px 6px;border-bottom:1.5px solid var(--ink)}
+.svc th.n,.svc td.n{text-align:right;white-space:nowrap}
+.svc td{padding:8px 6px;border-bottom:1px solid var(--ink);vertical-align:top}
+.svc .nm{font-weight:600}
+.svc .ds{font-size:13.5px;color:#333}
+.box{border:1px solid var(--ink);border-top:0}
+.grid6{display:grid;grid-template-columns:1fr 1fr 1fr 1fr .8fr 1.1fr;border:1px solid var(--ink);margin-top:14px}
+.grid6>div{padding:14px 8px;text-align:center;border-left:1px solid var(--ink);display:flex;align-items:center;justify-content:center}
+.grid6>div:first-child{border-left:0}
+.grid6 .tot{justify-content:flex-end;font-size:17px;font-weight:600;padding-right:14px}
+.bul{list-style:none;margin:0;padding:10px 14px}
+.bul li{position:relative;padding-left:40px}
+.bul li::before{content:"❖";position:absolute;left:4px}
+.sign{display:grid;grid-template-columns:1fr 1fr;min-height:76px}
+.sign div{display:flex;align-items:center;justify-content:center;border-right:1px solid var(--ink)}
+.sign div:last-child{border-right:0}
+.two{display:grid;grid-template-columns:1fr 1fr;margin-top:30px;border-bottom:1.5px solid var(--ink)}
+.two>div:first-child{border-right:1px solid var(--ink)}
+.two h3,.sheet h3{font-size:15px;font-weight:400;margin:0;padding:10px 14px;border-top:1px solid var(--ink);border-bottom:1.5px solid var(--ink)}
+.two .acct{padding:22px 14px}
+.two .acct div{min-height:1.6em}
+.other{border-bottom:1.5px solid var(--ink)}
+.other h3{border-top:0}
+.muted-ph{color:#aaa}
+
+@media print{
+  body{background:#fff}.form,.preview-bar{display:none!important}
+  .app{display:block;padding:0}.sheet-wrap{transform:none!important}.stage{height:auto!important}
+  .sheet{box-shadow:none}
+}
+@media (prefers-reduced-motion:no-preference){button{transition:border-color .15s,color .15s}}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <form class="form" id="form" autocomplete="off">
+    <div class="head">
+      <div>
+        <h1>業配報價單產生器</h1>
+        <p>左邊填寫，右邊即時更新。資料會自動存在這台裝置的瀏覽器。</p>
+      </div>
+      <div class="btns">
+        <button type="button" id="btnPdf" class="primary">匯出 PDF</button>
+        <button type="button" id="btnClear">清空客戶資料</button>
+      </div>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+
+    <fieldset>
+      <legend>報價單資訊</legend>
+      <div class="row">
+        <label>品牌 / 頻道名稱<input id="brand" data-k="brand"></label>
+        <label>報價日期（預設今天）<input type="date" id="date" data-k="date"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>客戶資料</legend>
+      <div class="row">
+        <label>廠商名稱<input id="vendor" data-k="vendor"></label>
+        <label>統一編號<input id="taxId" data-k="taxId" inputmode="numeric" maxlength="8"></label>
+      </div>
+      <div class="row">
+        <label>聯絡人<input id="contact" data-k="contact"></label>
+        <label>TEL<input id="tel" data-k="tel" inputmode="tel"></label>
+      </div>
+      <label>Email<input id="email" data-k="email" type="email"></label>
+      <label>品名（合作商品）<input id="product" data-k="product"></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>服務項目</legend>
+      <div class="item">
+        <div class="item-title">FB 多圖貼文 <span id="subImg"></span></div>
+        <div class="row">
+          <label>每篇金額<input type="number" min="0" step="500" id="imgPrice" data-k="imgPrice" data-num></label>
+          <label>組數（篇）<input type="number" min="0" id="imgQty" data-k="imgQty" data-num></label>
+        </div>
+        <label>說明<input id="imgDesc" data-k="imgDesc"></label>
+      </div>
+      <div class="item">
+        <div class="item-title">IG+FB 短影音貼文 <span id="subVid"></span></div>
+        <div class="row">
+          <label>每篇金額<input type="number" min="0" step="500" id="vidPrice" data-k="vidPrice" data-num></label>
+          <label>組數（篇）<input type="number" min="0" id="vidQty" data-k="vidQty" data-num></label>
+        </div>
+        <label>說明<input id="vidDesc" data-k="vidDesc"></label>
+      </div>
+      <div class="item">
+        <div class="item-title">廣告主權限 <span id="subAd"></span></div>
+        <div class="row">
+          <label>每篇每月<input type="number" min="0" step="50" id="adPrice" data-k="adPrice" data-num></label>
+          <label>授權篇數<input type="number" min="0" id="adPosts" data-k="adPosts" data-num></label>
+          <label>授權月數
+            <select id="adMonths" data-k="adMonths" data-num>
+              <option value="0">不需要</option><option value="1">1 個月</option>
+              <option value="2">2 個月</option><option value="3">3 個月</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">授權篇數預設跟著上面貼文總數，最多為期 3 個月。</p>
+      </div>
+      <div class="sum"><span>總計</span><b id="sumTotal"></b></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>付款</legend>
+      <div class="row">
+        <label>訂金比例（%）<input type="number" min="0" max="100" id="depositPct" data-k="depositPct" data-num></label>
+        <label>訂金金額<input id="depositAmt" readonly tabindex="-1"></label>
+      </div>
+      <div class="row">
+        <div>
+          <div class="hint" style="margin-bottom:4px">訂金</div>
+          <div class="pay">
+            <input type="radio" name="depPaid" id="dep1" value="1" data-k="depPaid"><label for="dep1" class="p">已付</label>
+            <input type="radio" name="depPaid" id="dep0" value="0" data-k="depPaid"><label for="dep0" class="u">未付</label>
+          </div>
+        </div>
+        <div>
+          <div class="hint" style="margin-bottom:4px">尾款</div>
+          <div class="pay">
+            <input type="radio" name="balPaid" id="bal1" value="1" data-k="balPaid"><label for="bal1" class="p">已付</label>
+            <input type="radio" name="balPaid" id="bal0" value="0" data-k="balPaid"><label for="bal0" class="u">未付</label>
+          </div>
+        </div>
+      </div>
+      <label>付款說明（一行一點）<textarea id="payNotes" data-k="payNotes" rows="3"></textarea></label>
+      <p class="hint">可用 {訂金比例} 代入上面的百分比。訂金選「已付」時，第一行提到訂金的說明後面會自動加上訂金金額。</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>合作備忘時程</legend>
+      <div class="tl"><span>收到商品</span><input type="date" id="t1" data-k="t1"></div>
+      <div class="tl"><span>提供分鏡影片分鏡大綱或圖文拍攝方向</span><input type="date" id="t2" data-k="t2"></div>
+      <div class="tl"><span>拍攝</span><input type="date" id="t3" data-k="t3"></div>
+      <div class="tl"><span>審稿</span><input type="date" id="t4" data-k="t4"></div>
+      <div class="tl"><span>發布</span><input type="date" id="t5" data-k="t5"></div>
+      <p class="hint">沒填日期的項目不會出現在報價單上。</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>收款帳戶</legend>
+      <label>匯款銀行<input id="bank" data-k="bank"></label>
+      <div class="row">
+        <label>匯款帳戶<input id="acct" data-k="acct" inputmode="numeric"></label>
+        <label>匯款戶名<input id="acctName" data-k="acctName"></label>
+      </div>
+      <label>備註<input id="acctNote" data-k="acctNote"></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>其他注意事項</legend>
+      <label>一行一點<textarea id="notes" data-k="notes" rows="8"></textarea></label>
+    </fieldset>
+  </form>
+
+  <section class="preview" aria-label="報價單預覽">
+    <div class="preview-bar"><span>即時預覽（A4）</span><span id="scaleTxt"></span></div>
+    <div class="stage" id="stage"><div class="sheet-wrap" id="wrap"><div class="sheet" id="sheet"></div></div></div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function(){
+const KEY='zouwei-quote-v1';
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const addDays=(n)=>{const d=new Date();d.setDate(d.getDate()+n);return iso(d)};
+const WD=['日','一','二','三','四','五','六'];
+
+function demo(){return{
+  brand:'走味關係', date:iso(new Date()),
+  vendor:'好日子食品股份有限公司（範例）', taxId:'12345678', contact:'王小明',
+  tel:'02-2345-6789', email:'demo@example.com', product:'好日子 手工辣椒醬禮盒',
+  imgPrice:6000, imgQty:1, imgDesc:'含 5 張照片與心得文案，不含食譜發想。',
+  vidPrice:10000, vidQty:1, vidDesc:'含食譜教學影片與心得文案。',
+  adPrice:200, adPosts:2, adMonths:3, adPostsTouched:false,
+  depositPct:20, depPaid:'1', balPaid:'0',
+  payNotes:'請於拍攝前 3 天需付 {訂金比例}% 訂金，發佈後 2 週內付清尾款。\n如希望一次付清，請於發佈後 1 週內付清款項。',
+  t1:addDays(2), t2:addDays(9), t3:addDays(14), t4:addDays(18), t5:addDays(20),
+  bank:'台北富邦銀行(012) 大同分行', acct:'00380168143017', acctName:'顏婕', acctNote:'(可簽勞務報酬單)',
+  notes:'合作前雙方請事先溝通商品內容與特色，可指定 hashtag、tag 帳號，不可指定商品露出方式。\n所有本合作所產生的照片跟影片素材都可授權品牌使用，如官方網站、商品募資頁面、官方社群平台(含包框廣告) 等，僅需備註出處。可另提供人像+部分文案內容作為證言，用於官方網站、商品募資頁面、官方社群平台之中。(備註：使用影片素材時，只供節錄，不開放重新剪接)\n一般發文時間為每週三、五(中午 12:00 或晚間 21:00)，如需指定發佈時間，請提前溝通，盡可能配合您的行銷檔期。'
+}}
+
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){S=null}
+if(!S) S=demo();
+S.date=iso(new Date()); // 頁首永遠顯示當日日期（可再手動改）
+
+const form=document.getElementById('form');
+const fields=[...form.querySelectorAll('[data-k]')];
+
+function fill(){
+  fields.forEach(el=>{
+    const v=S[el.dataset.k];
+    if(el.type==='radio') el.checked=String(v)===el.value;
+    else el.value=v??'';
+  });
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+const money=n=>'$'+Math.round(n||0).toLocaleString('en-US');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtDate=s=>{if(!s)return'';const[y,m,d]=s.split('-').map(Number);const dt=new Date(y,m-1,d);return `${y}/${pad(m)}/${pad(d)}(${WD[dt.getDay()]})`};
+const lines=s=>String(s||'').split('\n').map(x=>x.trim()).filter(Boolean);
+const ph=(v,t)=>v?esc(v):`<span class="muted-ph">${t}</span>`;
+
+function calc(){
+  const img=(+S.imgPrice||0)*(+S.imgQty||0);
+  const vid=(+S.vidPrice||0)*(+S.vidQty||0);
+  const ad=(+S.adPrice||0)*(+S.adPosts||0)*(+S.adMonths||0);
+  const total=img+vid+ad;
+  return{img,vid,ad,total,deposit:Math.round(total*(+S.depositPct||0)/100)};
+}
+
+function render(){
+  const c=calc();
+  document.getElementById('subImg').textContent=money(c.img);
+  document.getElementById('subVid').textContent=money(c.vid);
+  document.getElementById('subAd').textContent=money(c.ad);
+  document.getElementById('sumTotal').textContent=money(c.total);
+  document.getElementById('depositAmt').value=money(c.deposit)+'　尾款 '+money(c.total-c.deposit);
+
+  const chk=v=>String(v)==='1'?'■已付□未付':'□已付■未付';
+  let rows='';
+  rows+=`<tr><td colspan="4" class="nm">品名　${esc(S.product)}</td></tr>`;
+  if(+S.imgQty>0) rows+=`<tr><td><div>【FB 多圖貼文】${(+S.imgPrice).toLocaleString('en-US')} 元/篇</div><div class="ds">${esc(S.imgDesc)}</div></td><td class="n">${S.imgQty}</td><td class="n">${money(S.imgPrice)}</td><td class="n">${money(c.img)}</td></tr>`;
+  if(+S.vidQty>0) rows+=`<tr><td><div>【IG+FB 短影音貼文】${(+S.vidPrice).toLocaleString('en-US')} 元/篇</div><div class="ds">${esc(S.vidDesc)}</div></td><td class="n">${S.vidQty}</td><td class="n">${money(S.vidPrice)}</td><td class="n">${money(c.vid)}</td></tr>`;
+  if(+S.adMonths>0 && +S.adPosts>0) rows+=`<tr><td><div>【廣告主權限】</div><div class="ds">每篇發文 ${(+S.adPrice).toLocaleString('en-US')} 元/月，最多為期 3 個月。（${S.adPosts} 篇 × ${S.adMonths} 個月）</div></td><td class="n">${S.adPosts * S.adMonths}</td><td class="n">${money(S.adPrice)}</td><td class="n">${money(c.ad)}</td></tr>`;
+
+  const tl=[['t1','收到商品'],['t2','提供分鏡影片分鏡大綱或圖文拍攝方向'],['t3','拍攝'],['t4','審稿'],['t5','發布']]
+    .filter(([k])=>S[k]).map(([k,t])=>`<li>${fmtDate(S[k])} ${t}</li>`).join('');
+  const payLines=lines(S.payNotes);
+  const depLine=payLines.findIndex(l=>l.includes('訂金'));
+  const depMark=String(S.depPaid)==='1'?`(${money(c.deposit)})`:'';
+  const pay=payLines.map((l,i)=>`<li>${esc(l).replace(/\{訂金比例\}/g,esc(S.depositPct))}${i===depLine?depMark:''}</li>`).join('');
+  const notes=lines(S.notes).map(l=>`<li>${esc(l)}</li>`).join('');
+  const d=S.date?S.date.replace(/-/g,'/'):'';
+
+  document.getElementById('sheet').innerHTML=`
+    <div class="date">${d}</div>
+    <h2>「${esc(S.brand)}」業配合作 報價單</h2>
+    <div class="meta">
+      <div>謹致</div><div>聯絡人：${esc(S.contact)}</div>
+      <div>廠商名稱　${esc(S.vendor)}</div><div>TEL: ${esc(S.tel)}</div>
+      <div>統一編號：${esc(S.taxId)}</div><div>Email: ${esc(S.email)}</div>
+    </div>
+    <table class="svc">
+      <thead><tr><th>服務項目</th><th class="n" style="width:70px">組數</th><th class="n" style="width:110px">金額</th><th class="n" style="width:110px">小計</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="grid6">
+      <div>訂金</div><div>${chk(S.depPaid)}</div><div>尾款</div><div>${chk(S.balPaid)}</div><div>總計</div><div class="tot">${money(c.total)}</div>
+    </div>
+    <div class="box"><ul class="bul">${pay}</ul></div>
+    <div class="box sign"><div>客戶確認簽名</div><div></div></div>
+    <div class="two">
+      <div><h3>合作備忘</h3><ul class="bul" style="padding-top:18px">${tl||'<li class="muted-ph">尚未填寫時程</li>'}</ul></div>
+      <div><h3>收款帳戶</h3><div class="acct">
+        <div>匯款銀行：${esc(S.bank)}</div><div>匯款帳戶：${esc(S.acct)}</div>
+        <div>匯款戶名：${esc(S.acctName)}</div><div>${esc(S.acctNote)}</div></div></div>
+    </div>
+    <div class="other"><h3>其他注意事項</h3><ul class="bul" style="border-top:1.5px solid var(--ink);padding-top:14px">${notes}</ul></div>`;
+  fit();
+}
+
+function fit(){
+  const stage=document.getElementById('stage'),wrap=document.getElementById('wrap'),sheet=document.getElementById('sheet');
+  const w=stage.clientWidth||794;
+  const s=Math.min(1,w/794);
+  wrap.style.transform=`scale(${s})`;
+  stage.style.height=(sheet.offsetHeight*s)+'px';
+  document.getElementById('scaleTxt').textContent=Math.round(s*100)+'%';
+}
+
+form.addEventListener('input',e=>{
+  const el=e.target,k=el.dataset.k; if(!k)return;
+  S[k]=el.hasAttribute('data-num')?(el.value===''?'':Number(el.value)):el.value;
+  if(k==='adPosts') S.adPostsTouched=true;
+  if((k==='imgQty'||k==='vidQty')&&!S.adPostsTouched){
+    S.adPosts=(+S.imgQty||0)+(+S.vidQty||0);
+    document.getElementById('adPosts').value=S.adPosts;
+  }
+  if(k==='adMonths'&&S.adMonths>3){S.adMonths=3}
+  save(); render();
+});
+form.addEventListener('submit',e=>e.preventDefault());
+
+const toast=t=>{const el=document.getElementById('toast');el.textContent=t;clearTimeout(toast._t);toast._t=setTimeout(()=>el.textContent='',2500)};
+const btnPdf=document.getElementById('btnPdf');
+btnPdf.onclick=async()=>{
+  if(!window.html2canvas||!window.jspdf){toast('PDF 元件載入失敗，請重新整理頁面後再試');return}
+  btnPdf.disabled=true;btnPdf.textContent='產生中…';
+  const holder=document.createElement('div');
+  holder.style.cssText='position:fixed;left:-10000px;top:0;';
+  holder.appendChild(document.getElementById('sheet').cloneNode(true));
+  holder.firstChild.removeAttribute('id');holder.firstChild.style.boxShadow='none';
+  document.body.appendChild(holder);
+  try{
+    if(document.fonts&&document.fonts.ready) await document.fonts.ready;
+    const canvas=await html2canvas(holder.firstChild,{scale:2,backgroundColor:'#ffffff'});
+    const pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
+    let w=210,h=canvas.height*210/canvas.width;
+    if(h>297){w=w*297/h;h=297}
+    pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(210-w)/2,0,w,h);
+    const name=('報價單_'+(S.vendor||S.brand||'')+'_'+(S.date||'')).replace(/[\\/:*?"<>|]/g,'').trim()+'.pdf';
+    const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):undefined;
+    if(dl===undefined){pdf.save(name);toast('已匯出 PDF');}
+    else if(dl===null){toast('這個檢視無法下載檔案，請在 claude.ai 開啟此頁面');}
+    else{
+      try{await dl.save({filename:name,data:pdf.output('blob')});toast('已匯出 PDF');}
+      catch(err){toast(err&&err.code==='declined'?'已取消下載':'下載失敗：'+(err&&err.message||'請稍後再試'));}
+    }
+  }catch(e){toast('產生 PDF 失敗：'+e.message)}
+  finally{holder.remove();btnPdf.disabled=false;btnPdf.textContent='匯出 PDF';}
+};
+document.getElementById('btnClear').onclick=()=>{
+  Object.assign(S,{vendor:'',taxId:'',contact:'',tel:'',email:'',product:'',depPaid:'0',balPaid:'0',t1:'',t2:'',t3:'',t4:'',t5:'',date:iso(new Date())});
+  fill();save();render();toast('已清空客戶資料與時程，報價項目與收款帳戶保留');
+};
+
+if('ResizeObserver' in window) new ResizeObserver(fit).observe(document.getElementById('stage'));
+window.addEventListener('resize',fit);
+fill(); render();
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fit);
+})();
+</script>
+
+</body>
+</html>
