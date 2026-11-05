@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF 電子簽名</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* 配色：#16697a 深藍綠 / #489fb5 藍綠 / #82c0cc 淺藍綠 / #ede7e3 米白 / #ffa62b 橘 */
+  --bg:#ede7e3; --side:#ede7e3; --card:#ffffff; --ink:#173840; --muted:#5f7479; --line:#d9d0ca;
+  --brand:#16697a; --brand-ink:#ffffff;
+  --primary:#16697a; --primary-ink:#ffffff; --primary-hover:#125866;
+  --soft:#dcedf1; --soft-line:#489fb5; --soft-ink:#16697a;
+  --cta:#ffa62b; --cta-ink:#3a2504; --cta-hover:#f59a17;
+  --canvas:#82c0cc; --canvas-ink:#0f4c58; --mark:#ffa62b; --danger:#d64545;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f2f36; --side:#123a43; --card:#174651; --ink:#ede7e3; --muted:#a7c3c9; --line:#285a65;
+    --brand:#16697a; --brand-ink:#ffffff;
+    --primary:#82c0cc; --primary-ink:#0f2f36; --primary-hover:#97cbd5;
+    --soft:#1d5562; --soft-line:#82c0cc; --soft-ink:#ede7e3;
+    --cta:#ffa62b; --cta-ink:#3a2504; --cta-hover:#ffb54f;
+    --canvas:#0b2429; --canvas-ink:#a7c3c9; --mark:#ffa62b; --danger:#ef6b6b;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f2f36; --side:#123a43; --card:#174651; --ink:#ede7e3; --muted:#a7c3c9; --line:#285a65;
+  --brand:#16697a; --brand-ink:#ffffff;
+  --primary:#82c0cc; --primary-ink:#0f2f36; --primary-hover:#97cbd5;
+  --soft:#1d5562; --soft-line:#82c0cc; --soft-ink:#ede7e3;
+  --cta:#ffa62b; --cta-ink:#3a2504; --cta-hover:#ffb54f;
+  --canvas:#0b2429; --canvas-ink:#a7c3c9; --mark:#ffa62b; --danger:#ef6b6b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"Noto Sans TC",system-ui,sans-serif;font-size:15px}
+.app{display:grid;grid-template-columns:340px 1fr;height:100vh}
+aside{background:var(--side);border-right:1px solid var(--line);overflow-y:auto;padding:0 18px 20px;display:flex;flex-direction:column;gap:16px}
+.brand{margin:0 -18px;padding:18px 18px 16px;background:var(--brand);color:var(--brand-ink);border-bottom:4px solid var(--cta)}
+h1{font-size:20px;margin:0;letter-spacing:.04em}
+.brand p{margin:4px 0 0;font-size:12px;opacity:.85}
+h2{font-size:14px;margin:0 0 10px;color:var(--soft-ink);font-weight:700;letter-spacing:.05em}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:0 1px 2px rgba(22,105,122,.06)}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:9px 14px;font:inherit;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.btn:hover:not(:disabled){border-color:var(--soft-line);background:var(--soft)}
+.btn:focus-visible,.link:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--cta);outline-offset:2px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:var(--primary-ink);font-weight:500}
+.btn.primary:hover:not(:disabled){background:var(--primary-hover);border-color:var(--primary-hover)}
+.btn.ok{background:var(--cta);border-color:var(--cta);color:var(--cta-ink);font-weight:700}
+.btn.ok:hover:not(:disabled){background:var(--cta-hover);border-color:var(--cta-hover)}
+.btn.full{width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.file-label{display:block;border:2px dashed var(--soft-line);border-radius:10px;padding:16px;text-align:center;cursor:pointer;color:var(--soft-ink);background:var(--soft)}
+.file-label:hover{border-color:var(--primary);border-style:solid}
+.file-label input{display:none}
+.fname{margin-top:8px;font-size:13px;color:var(--muted);word-break:break-all}
+.link{background:none;border:none;color:var(--soft-ink);cursor:pointer;font:inherit;font-size:13px;padding:0;margin-top:6px;text-decoration:underline;font-weight:500}
+.sig-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sig-item{position:relative}
+.sig-item .sig-btn{width:100%;padding-right:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sig-del{position:absolute;top:50%;right:6px;transform:translateY(-50%);width:22px;height:22px;border:none;border-radius:50%;background:transparent;color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+.sig-del:hover:not(:disabled){background:var(--danger);color:#fff}
+.sig-del:disabled{opacity:.4;cursor:not-allowed}
+.sig-empty{grid-column:1/-1;font-size:13px;color:var(--muted);background:var(--soft);border-radius:8px;padding:10px;text-align:center}
+.add-sig{margin-top:10px}
+.add-sig .btn{width:100%;border-style:dashed;border-color:var(--soft-line);color:var(--soft-ink)}
+.sig-form{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.sig-preview{background:#fff;border-radius:6px;border:1px solid var(--line);padding:8px;text-align:center;
+  background-image:linear-gradient(45deg,#f1eeec 25%,transparent 25%,transparent 75%,#f1eeec 75%),linear-gradient(45deg,#f1eeec 25%,transparent 25%,transparent 75%,#f1eeec 75%);background-size:14px 14px;background-position:0 0,7px 7px}
+.sig-preview img{max-width:100%;max-height:90px;display:block;margin:0 auto}
+.sig-form input[type=text]{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 8px;font:inherit;background:var(--card);color:var(--ink)}
+.sig-form label.chk{font-size:13px;display:flex;gap:6px;align-items:center;color:var(--ink)}
+.sig-form .row .btn{flex:1}
+.privacy{font-size:12px;color:var(--soft-ink);background:var(--soft);border-radius:6px;padding:6px 8px;margin-top:10px;line-height:1.5}
+.sig-btn.active{background:var(--soft);border-color:var(--soft-line);color:var(--soft-ink);font-weight:700;box-shadow:inset 0 0 0 1px var(--soft-line)}
+.tray{margin-top:12px;border-radius:8px;background:#fff;border:2px dashed var(--mark);padding:10px;display:none;text-align:center;touch-action:none;cursor:grab;user-select:none}
+.tray.show{display:block}
+.tray img{max-width:100%;max-height:90px;pointer-events:none}
+.hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--card);color:var(--ink);resize:vertical}
+select,input[type=color]{border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit;padding:4px 6px;height:34px}
+input[type=color]{width:42px;padding:2px}
+.text-tray{color:#111;font-family:"Noto Sans TC",sans-serif;white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.actions{margin-top:auto;position:sticky;bottom:0;background:var(--side);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.actions .row .btn{flex:1}
+.status{font-size:13px;color:var(--muted);text-align:center}
+.status.ok{color:var(--soft-ink);font-weight:700}
+.hidden{display:none!important}
+
+main{overflow:auto;background:var(--canvas);padding:28px 16px 60px}
+.empty{height:100%;display:grid;place-items:center;color:var(--canvas-ink);text-align:center;font-weight:500;line-height:1.8}
+.page-wrap{position:relative;margin:0 auto 26px;box-shadow:0 4px 16px rgba(15,76,88,.28);background:#fff}
+.page-wrap canvas{display:block;width:100%;height:100%}
+.page-no{position:absolute;top:-1px;right:-1px;transform:translateY(-100%);font-size:12px;color:var(--canvas-ink);padding:2px 0;font-weight:500}
+.page-wrap.drop-hover{outline:3px solid var(--mark);outline-offset:2px}
+.item{position:absolute;touch-action:none;cursor:move;user-select:none;outline:1.5px dashed var(--mark);outline-offset:0}
+.item img{display:block;width:100%;height:auto;pointer-events:none}
+.item .txt{white-space:pre;line-height:1.3;font-family:"Noto Sans TC",sans-serif;padding:0;pointer-events:none}
+.item .del,.item .rs{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--mark);color:#3a2504;display:grid;place-items:center;font-size:14px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.item .del{top:-11px;right:-11px;background:var(--danger);color:#fff;cursor:pointer}
+.item .rs{bottom:-11px;right:-11px;cursor:nwse-resize;font-size:11px}
+.locked .item{outline:none;cursor:default;pointer-events:none}
+.locked .item .del,.locked .item .rs{display:none}
+.ghost{position:fixed;pointer-events:none;z-index:1000;opacity:.8;transform:translate(-50%,-50%)}
+.ghost img{display:block;width:100%}
+.overlay{position:fixed;inset:0;background:rgba(15,47,54,.55);display:grid;place-items:center;z-index:2000;color:#fff;font-size:16px}
+
+@media (max-width:800px){
+  .app{grid-template-columns:1fr;height:auto}
+  aside{border-right:none;border-bottom:1px solid var(--line);padding:0 16px 16px}
+  .brand{margin:0 -16px;padding:16px}
+  main{min-height:70vh;padding:24px 16px 40px}
+  .actions{position:static}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><h1>PDF 電子簽名</h1><p>上傳 PDF → 拖曳簽名 → 確認 → 匯出</p></div>
+
+    <section class="card">
+      <h2>① 上傳 PDF</h2>
+      <label class="file-label">點此選擇 PDF 檔案
+        <input type="file" id="fileInput" accept="application/pdf,.pdf">
+      </label>
+      <div class="fname" id="fname">尚未選擇檔案</div>
+    </section>
+
+    <section class="card">
+      <h2>② 電子簽名</h2>
+      <div class="sig-btns" id="sigList"></div>
+      <div class="add-sig">
+        <button class="btn" id="addSigBtn" type="button">＋ 新增簽名圖檔</button>
+        <input type="file" id="sigFile" accept="image/png,image/jpeg,image/webp" hidden>
+      </div>
+      <div class="sig-form hidden" id="sigForm">
+        <div class="sig-preview"><img id="sigPreview" alt="簽名預覽"></div>
+        <input type="text" id="sigName" placeholder="簽名名稱，例如：王小明" maxlength="20">
+        <label class="chk"><input type="checkbox" id="sigBgRemove" checked> 去除白色背景（建議勾選）</label>
+        <div class="row"><button class="btn" id="sigCancel" type="button">取消</button><button class="btn primary" id="sigSave" type="button">儲存簽名</button></div>
+      </div>
+      <div class="tray" id="sigTray"><img id="sigTrayImg" alt="電子簽名"></div>
+      <div class="hint" id="sigHint">選擇簽名後，將簽名拖曳到右側 PDF 的任意位置。</div>
+      <div class="privacy" id="privacyNote">🔒 簽名圖檔只會儲存在這台電腦的瀏覽器裡，不會上傳到任何地方。</div>
+    </section>
+
+    <section class="card">
+      <h2>③ 文字方塊</h2>
+      <textarea id="textInput" placeholder="輸入要加入的文字，例如日期 2026/11/05"></textarea>
+      <div class="row" style="margin-top:8px">
+        <select id="fontSize" title="字級">
+          <option value="10">10 pt</option><option value="12" selected>12 pt</option>
+          <option value="14">14 pt</option><option value="16">16 pt</option>
+          <option value="20">20 pt</option><option value="24">24 pt</option>
+        </select>
+        <input type="color" id="fontColor" value="#000000" title="文字顏色">
+        <button class="btn primary" id="makeTextBtn" style="flex:1">產生文字方塊</button>
+      </div>
+      <div class="tray text-tray" id="textTray"></div>
+      <div class="hint">按「產生文字方塊」後，將下方預覽拖曳到 PDF 上。</div>
+    </section>
+
+    <div class="actions">
+      <div class="status" id="status"></div>
+      <div class="row hidden" id="confirmBar">
+        <button class="btn" id="redoBtn">重作</button>
+        <button class="btn primary" id="confirmBtn">確認無誤</button>
+      </div>
+      <div class="hidden" id="exportBar" style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn ok full" id="exportBtn">匯出 PDF</button>
+        <button class="link" id="backBtn" style="align-self:center">返回修改</button>
+      </div>
+    </div>
+  </aside>
+
+  <main id="viewer">
+    <div class="empty" id="empty">請先在左側上傳 PDF 檔案</div>
+    <div id="pages"></div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const PDFJS_BASE="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+// PDF 引擎優先在背景 Web Worker 執行；若瀏覽器不允許（例如以 file:// 開啟、
+// 安全性設定或擴充功能阻擋），改為在主執行緒執行，並關閉 pdf.js 的 "fake worker" 警告。
+const WORKER_URL=PDFJS_BASE+"pdf.worker.min.js";
+function tryRealWorker(code){
+  return new Promise((resolve,reject)=>{
+    let w;
+    try{ w=new Worker(URL.createObjectURL(new Blob([code],{type:"text/javascript"}))); }
+    catch(err){ reject(err); return; }
+    const done=ok=>{ clearTimeout(t); w.onmessage=w.onerror=null; ok?resolve(w):(w.terminate(),reject(new Error("worker 無回應"))); };
+    const t=setTimeout(()=>done(false),4000);
+    w.onmessage=()=>done(true);          // worker 啟動後會送出 "ready" 訊息
+    w.onerror=e=>{ e.preventDefault&&e.preventDefault(); done(false); };
+  });
+}
+function loadScript(src){
+  return new Promise((res,rej)=>{ const sc=document.createElement("script"); sc.src=src; sc.onload=res; sc.onerror=()=>rej(new Error("無法載入 "+src)); document.head.append(sc); });
+}
+let pdfVerbosity=1;
+const workerReady=(async()=>{
+  try{
+    const res=await fetch(WORKER_URL);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    pdfjsLib.GlobalWorkerOptions.workerPort=await tryRealWorker(await res.text());
+    return;
+  }catch(err){
+    console.debug("背景 Worker 無法使用，改在主執行緒處理 PDF：",err);
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc=WORKER_URL;
+  pdfVerbosity=0;   // 0 = 只顯示錯誤，不再輸出 "Setting up fake worker." 警告
+  try{ await loadScript(WORKER_URL); }catch(err){ console.debug(err); }
+})();
+
+const $=id=>document.getElementById(id);
+const pagesEl=$("pages");
+let pdfBytes=null, pdfName="document.pdf", pdfDoc=null;
+let pageInfos=[];          // {wrap, widthPt, heightPt}
+let items=[];              // {id, el, page, type, sig?, text?, size?, color?, x,y,w (fractions of page)}
+let currentSig=null, textDraft=null, locked=false, idSeq=0;
+
+/* ---------- Load PDF ---------- */
+$("fileInput").addEventListener("change",async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  if(!/\.pdf$/i.test(f.name) && f.type!=="application/pdf"){ alert("請上傳 PDF 檔案"); return; }
+  await loadPdf(new Uint8Array(await f.arrayBuffer()), f.name);
+});
+function showOverlay(msg){
+  const ov=document.createElement("div"); ov.className="overlay"; ov.textContent=msg; document.body.append(ov); return ov;
+}
+
+async function loadPdf(bytes,name){
+  if(items.length && !confirm("載入新檔案會清除目前已放置的簽名與文字，確定嗎？")) return;
+  clearItems(); setLocked(false);
+  pdfBytes=bytes; pdfName=name; $("fname").textContent=name;
+  try{
+    await workerReady;
+    pdfDoc=await pdfjsLib.getDocument({data:bytes.slice(),verbosity:pdfVerbosity,cMapUrl:PDFJS_BASE+"cmaps/",cMapPacked:true,
+      standardFontDataUrl:PDFJS_BASE+"standard_fonts/"}).promise;
+  }catch(err){ alert("無法開啟此 PDF："+err.message); return; }
+  $("empty").classList.add("hidden");
+  await renderAll();
+}
+
+async function renderAll(){
+  pagesEl.innerHTML=""; pageInfos=[];
+  const avail=Math.min($("viewer").clientWidth-32, 900);
+  for(let n=1;n<=pdfDoc.numPages;n++){
+    const page=await pdfDoc.getPage(n);
+    const base=page.getViewport({scale:1});
+    const scale=avail/base.width, vp=page.getViewport({scale});
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const wrap=document.createElement("div"); wrap.className="page-wrap"+(locked?" locked":"");
+    wrap.style.width=vp.width+"px"; wrap.style.height=vp.height+"px";
+    wrap.dataset.page=n-1;
+    const label=document.createElement("div"); label.className="page-no"; label.textContent=`第 ${n} / ${pdfDoc.numPages} 頁`;
+    const cv=document.createElement("canvas"); cv.width=Math.floor(vp.width*dpr); cv.height=Math.floor(vp.height*dpr);
+    wrap.append(label,cv); pagesEl.append(wrap);
+    pageInfos.push({wrap,widthPt:base.width,heightPt:base.height,pxPerPt:scale});
+    await page.render({canvasContext:cv.getContext("2d"),viewport:page.getViewport({scale:scale*dpr})}).promise;
+  }
+  items.forEach(it=>{pageInfos[it.page].wrap.append(it.el); layoutItem(it);});
+}
+let rT; window.addEventListener("resize",()=>{ if(!pdfDoc) return; clearTimeout(rT); rT=setTimeout(renderAll,250); });
+
+/* ---------- Signature selection ---------- */
+/* ---------- 簽名圖檔：使用者自行上傳，存在瀏覽器 localStorage ---------- */
+const SIG_STORE_KEY="pdfSign.signatures.v1";
+let sigList=[], storageOk=true;
+const sigById=id=>sigList.find(x=>x.id===id);
+function loadSigs(){
+  try{ sigList=JSON.parse(localStorage.getItem(SIG_STORE_KEY)||"[]"); if(!Array.isArray(sigList)) sigList=[]; }
+  catch(e){ sigList=[]; storageOk=false; }
+}
+function saveSigs(){
+  try{ localStorage.setItem(SIG_STORE_KEY,JSON.stringify(sigList)); storageOk=true; return true; }
+  catch(e){ storageOk=false; return false; }
+}
+function renderSigList(){
+  const box=$("sigList"); box.innerHTML="";
+  if(!sigList.length){ box.innerHTML='<div class="sig-empty">尚未有簽名，請先新增簽名圖檔</div>'; }
+  sigList.forEach(sg=>{
+    const wrap=document.createElement("div"); wrap.className="sig-item";
+    const b=document.createElement("button"); b.type="button"; b.className="btn sig-btn"+(sg.id===currentSig?" active":"");
+    b.textContent=sg.name; b.title=sg.name; b.disabled=locked;
+    b.addEventListener("click",()=>selectSig(sg.id));
+    const d=document.createElement("button"); d.type="button"; d.className="sig-del"; d.textContent="×"; d.title="刪除此簽名"; d.disabled=locked;
+    d.addEventListener("click",()=>{
+      if(!confirm(`確定要從這台電腦刪除「${sg.name}」的簽名嗎？`)) return;
+      sigList=sigList.filter(x=>x!==sg); saveSigs();
+      if(currentSig===sg.id){ currentSig=null; $("sigTray").classList.remove("show"); $("sigHint").textContent="選擇簽名後，將簽名拖曳到右側 PDF 的任意位置。"; }
+      renderSigList();
+    });
+    wrap.append(b,d); box.append(wrap);
+  });
+  $("privacyNote").textContent=storageOk
+    ?"🔒 簽名圖檔只會儲存在這台電腦的瀏覽器裡，不會上傳到任何地方。"
+    :"⚠️ 這個瀏覽器無法保存資料（可能是無痕模式），簽名只在本次使用有效，關閉頁面後需重新上傳。";
+}
+function selectSig(id){
+  const sg=sigById(id); if(!sg) return;
+  currentSig=id; renderSigList();
+  $("sigTrayImg").src=sg.data; $("sigTray").classList.add("show");
+  $("sigHint").textContent=`已選擇「${sg.name}」，請將上方簽名拖曳到 PDF 上。`;
+}
+// 讀取圖片 → 縮小、（可選）去白底、裁掉空白 → PNG data URL
+let sigSourceImg=null;
+function processSigImage(img,removeBg){
+  const MAXW=800, k=Math.min(1,MAXW/img.naturalWidth, 1600/img.naturalHeight);
+  const w=Math.max(1,Math.round(img.naturalWidth*k)), h=Math.max(1,Math.round(img.naturalHeight*k));
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  const ctx=c.getContext("2d"); ctx.drawImage(img,0,0,w,h);
+  const id=ctx.getImageData(0,0,w,h), d=id.data;
+  let x0=w,y0=h,x1=-1,y1=-1;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const i=(y*w+x)*4;
+    if(removeBg){
+      const l=(d[i]+d[i+1]+d[i+2])/3;
+      const a=Math.max(0,Math.min(255,Math.round((235-l)*255/120)));
+      d[i+3]=Math.min(d[i+3],a);
+    }
+    if(d[i+3]>60 && (removeBg || (d[i]+d[i+1]+d[i+2])/3<235)){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+  }
+  ctx.putImageData(id,0,0);
+  if(x1<0){ x0=0;y0=0;x1=w-1;y1=h-1; }
+  const pad=8; x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad); x1=Math.min(w-1,x1+pad); y1=Math.min(h-1,y1+pad);
+  const out=document.createElement("canvas"); out.width=x1-x0+1; out.height=y1-y0+1;
+  out.getContext("2d").drawImage(c,x0,y0,out.width,out.height,0,0,out.width,out.height);
+  return out.toDataURL("image/png");
+}
+function updateSigPreview(){ if(sigSourceImg) $("sigPreview").src=processSigImage(sigSourceImg,$("sigBgRemove").checked); }
+$("addSigBtn").addEventListener("click",()=>$("sigFile").click());
+$("sigFile").addEventListener("change",e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  if(!f.type.startsWith("image/")){ alert("請選擇圖片檔（PNG 或 JPG）"); return; }
+  const url=URL.createObjectURL(f), img=new Image();
+  img.onload=()=>{
+    sigSourceImg=img; updateSigPreview(); URL.revokeObjectURL(url);
+    $("sigName").value=f.name.replace(/\.[^.]+$/,"").slice(0,20);
+    $("sigForm").classList.remove("hidden"); $("addSigBtn").classList.add("hidden"); $("sigName").focus(); $("sigName").select();
+  };
+  img.onerror=()=>{ URL.revokeObjectURL(url); alert("無法讀取這個圖片檔"); };
+  img.src=url;
+});
+$("sigBgRemove").addEventListener("change",updateSigPreview);
+function closeSigForm(){ sigSourceImg=null; $("sigForm").classList.add("hidden"); $("addSigBtn").classList.remove("hidden"); }
+$("sigCancel").addEventListener("click",closeSigForm);
+$("sigSave").addEventListener("click",()=>{
+  const name=$("sigName").value.trim();
+  if(!name){ alert("請輸入簽名名稱"); $("sigName").focus(); return; }
+  const sg={id:"s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,data:$("sigPreview").src};
+  sigList.push(sg);
+  if(!saveSigs()) alert("瀏覽器無法保存簽名（可能是無痕模式或空間不足），本次仍可使用，但關閉頁面後需重新上傳。");
+  closeSigForm(); selectSig(sg.id);
+});
+$("sigName").addEventListener("keydown",e=>{ if(e.key==="Enter") $("sigSave").click(); });
+loadSigs(); renderSigList();
+
+
+/* ---------- Text box draft ---------- */
+$("makeTextBtn").addEventListener("click",()=>{
+  const t=$("textInput").value.replace(/\s+$/,"");
+  if(!t){ $("textInput").focus(); return; }
+  textDraft={text:t,size:+$("fontSize").value,color:$("fontColor").value};
+  const tr=$("textTray"); tr.textContent=t; tr.style.color=textDraft.color;
+  tr.style.fontSize=Math.min(textDraft.size*1.3,26)+"px"; tr.classList.add("show");
+});
+
+/* ---------- Drag from tray to page ---------- */
+function startTrayDrag(e,kind){
+  if(locked) return;
+  if(!pdfDoc){ alert("請先上傳 PDF"); return; }
+  e.preventDefault();
+  const ghost=document.createElement("div"); ghost.className="ghost";
+  const px=pageInfos[0].pxPerPt;
+  if(kind==="sig"){
+    ghost.innerHTML=`<img src="${sigById(currentSig).data}">`; ghost.style.width=(140*px)+"px";
+  }else{
+    ghost.innerHTML=`<div style="white-space:pre;line-height:1.3;font-family:'Noto Sans TC',sans-serif"></div>`;
+    ghost.firstChild.textContent=textDraft.text;
+    ghost.firstChild.style.fontSize=(textDraft.size*px)+"px"; ghost.firstChild.style.color=textDraft.color;
+  }
+  document.body.append(ghost);
+  const move=ev=>{
+    ghost.style.left=ev.clientX+"px"; ghost.style.top=ev.clientY+"px";
+    const p=pageAt(ev.clientX,ev.clientY);
+    pageInfos.forEach((pi,i)=>pi.wrap.classList.toggle("drop-hover",p&&p.index===i));
+  };
+  const up=ev=>{
+    document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up);
+    const gr=ghost.getBoundingClientRect(); ghost.remove();
+    pageInfos.forEach(pi=>pi.wrap.classList.remove("drop-hover"));
+    const p=pageAt(ev.clientX,ev.clientY); if(!p) return;
+    const r=p.wrap.getBoundingClientRect();
+    const it={id:++idSeq,page:p.index,type:kind,
+      x:(gr.left-r.left)/r.width, y:(gr.top-r.top)/r.height};
+    if(kind==="sig"){ it.sig=currentSig; it.data=sigById(currentSig).data; it.w=140/pageInfos[p.index].widthPt; }
+    else Object.assign(it,textDraft);
+    addItem(it);
+  };
+  move(e);
+  document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
+}
+$("sigTray").addEventListener("pointerdown",e=>currentSig&&sigById(currentSig)&&startTrayDrag(e,"sig"));
+$("textTray").addEventListener("pointerdown",e=>textDraft&&startTrayDrag(e,"text"));
+
+function pageAt(x,y){
+  for(let i=0;i<pageInfos.length;i++){
+    const r=pageInfos[i].wrap.getBoundingClientRect();
+    if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom) return {index:i,wrap:pageInfos[i].wrap};
+  }
+  return null;
+}
+
+/* ---------- Placed items ---------- */
+function addItem(it){
+  const el=document.createElement("div"); el.className="item";
+  if(it.type==="sig") el.innerHTML=`<img src="${it.data}" alt="">`;
+  else{ const t=document.createElement("div"); t.className="txt"; t.textContent=it.text; t.style.color=it.color; el.append(t); }
+  el.insertAdjacentHTML("beforeend",`<span class="del" title="刪除">×</span><span class="rs" title="拖曳調整大小">⤡</span>`);
+  it.el=el; items.push(it);
+  pageInfos[it.page].wrap.append(el); layoutItem(it); clampItem(it); layoutItem(it);
+  el.querySelector(".del").addEventListener("pointerdown",e=>{e.stopPropagation(); removeItem(it);});
+  el.querySelector(".rs").addEventListener("pointerdown",e=>resizeItem(e,it));
+  el.addEventListener("pointerdown",e=>moveItem(e,it));
+  updateBars();
+}
+function layoutItem(it){
+  const pi=pageInfos[it.page];
+  it.el.style.left=(it.x*100)+"%"; it.el.style.top=(it.y*100)+"%";
+  if(it.type==="sig") it.el.style.width=(it.w*100)+"%";
+  else it.el.querySelector(".txt").style.fontSize=(it.size*pi.pxPerPt)+"px";
+}
+function clampItem(it){
+  const r=pageInfos[it.page].wrap.getBoundingClientRect(), e=it.el.getBoundingClientRect();
+  it.x=Math.max(0,Math.min(it.x,1-e.width/r.width)); it.y=Math.max(0,Math.min(it.y,1-e.height/r.height));
+}
+function moveItem(e,it){
+  if(locked||e.target.classList.contains("rs")) return;
+  e.preventDefault();
+  let lastX=e.clientX,lastY=e.clientY;
+  const move=ev=>{
+    // allow moving to another page
+    const p=pageAt(ev.clientX,ev.clientY);
+    if(p&&p.index!==it.page){
+      const oldR=pageInfos[it.page].wrap.getBoundingClientRect(), er=it.el.getBoundingClientRect();
+      const nr=p.wrap.getBoundingClientRect();
+      if(it.type==="sig") it.w=it.w*pageInfos[it.page].widthPt/pageInfos[p.index].widthPt;
+      it.page=p.index; p.wrap.append(it.el);
+      it.x=(er.left-nr.left)/nr.width; it.y=(er.top-nr.top)/nr.height;
+    }
+    const r=pageInfos[it.page].wrap.getBoundingClientRect();
+    it.x+=(ev.clientX-lastX)/r.width; it.y+=(ev.clientY-lastY)/r.height;
+    lastX=ev.clientX; lastY=ev.clientY;
+    layoutItem(it); clampItem(it); layoutItem(it);
+  };
+  const up=()=>{document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",up);};
+  document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
+}
+function resizeItem(e,it){
+  if(locked) return; e.preventDefault(); e.stopPropagation();
+  const r=pageInfos[it.page].wrap.getBoundingClientRect(), start=it.el.getBoundingClientRect();
+  const sx=e.clientX, w0=it.w, s0=it.size;
+  const move=ev=>{
+    const k=Math.max(0.2,(start.width+(ev.clientX-sx))/start.width);
+    if(it.type==="sig") it.w=Math.min(w0*k,1-it.x);
+    else it.size=Math.max(4,Math.round(s0*k*2)/2);
+    layoutItem(it);
+  };
+  const up=()=>{document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",up);};
+  document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
+}
+function removeItem(it){ it.el.remove(); items=items.filter(x=>x!==it); updateBars(); }
+function clearItems(){ items.forEach(it=>it.el.remove()); items=[]; updateBars(); }
+
+/* ---------- Redo / confirm / export ---------- */
+function updateBars(){
+  $("confirmBar").classList.toggle("hidden",locked||items.length===0);
+  $("exportBar").classList.toggle("hidden",!locked);
+  const s=$("status"); s.classList.toggle("ok",locked);
+  s.textContent=locked?"✓ 已確認，可以匯出 PDF":(items.length?`已放置 ${items.length} 個項目，可拖曳移動、右下角調整大小`:"");
+}
+function setLocked(v){
+  locked=v; pageInfos.forEach(pi=>pi.wrap.classList.toggle("locked",v));
+  document.querySelectorAll(".sig-btn,.sig-del,#addSigBtn,#makeTextBtn,#fileInput").forEach(b=>b.disabled=v);
+  if(v) closeSigForm();
+  updateBars();
+}
+$("redoBtn").addEventListener("click",()=>{ if(confirm("確定要清除所有已放置的簽名與文字，重新放置嗎？")) clearItems(); });
+$("confirmBtn").addEventListener("click",()=>setLocked(true));
+$("backBtn").addEventListener("click",()=>setLocked(false));
+
+function textToPng(it,wPt,hPt){
+  const S=4, c=document.createElement("canvas");
+  c.width=Math.ceil(wPt*S); c.height=Math.ceil(hPt*S);
+  const ctx=c.getContext("2d"); ctx.fillStyle=it.color; ctx.textBaseline="top";
+  ctx.font=`${it.size*S}px "Noto Sans TC", sans-serif`;
+  const lh=it.size*1.3*S, pad=(lh-it.size*S)/2;
+  it.text.split("\n").forEach((line,i)=>ctx.fillText(line,0,i*lh+pad));
+  return c.toDataURL("image/png");
+}
+$("exportBtn").addEventListener("click",async()=>{
+  const ov=showOverlay("正在產生 PDF…");
+  try{
+    const {PDFDocument,degrees}=PDFLib;
+    const doc=await PDFDocument.load(pdfBytes,{ignoreEncryption:true});
+    const pages=doc.getPages(), cache={};
+    for(const it of items){
+      const page=pages[it.page], pi=pageInfos[it.page];
+      const pr=pi.wrap.getBoundingClientRect(), er=it.el.getBoundingClientRect();
+      // position & size in displayed (viewport) points
+      const vx=(er.left-pr.left)/pr.width*pi.widthPt, vy=(er.top-pr.top)/pr.height*pi.heightPt;
+      const vw=er.width/pr.width*pi.widthPt, vh=er.height/pr.height*pi.heightPt;
+      let png;
+      if(it.type==="sig"){ png=cache[it.sig]||(cache[it.sig]=await doc.embedPng(it.data)); }
+      else png=await doc.embedPng(textToPng(it,vw,vh));
+      const box=page.getCropBox(), rot=((page.getRotation().angle%360)+360)%360;
+      // map viewport coords (top-left origin, rotated) -> PDF user space
+      let x,y,opts;
+      if(rot===0){ x=box.x+vx; y=box.y+box.height-vy-vh; opts={x,y,width:vw,height:vh}; }
+      else if(rot===90){ opts={x:box.x+vy, y:box.y+vx, width:vw,height:vh, rotate:degrees(90)}; opts.x+=vh; }
+      else if(rot===180){ opts={x:box.x+box.width-vx, y:box.y+vy+vh, width:vw,height:vh, rotate:degrees(180)}; }
+      else { opts={x:box.x+box.width-vy-vh, y:box.y+box.height-vx, width:vw,height:vh, rotate:degrees(270)}; }
+      page.drawImage(png,opts);
+    }
+    const out=await doc.save();
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([out],{type:"application/pdf"}));
+    a.download=pdfName.replace(/\.pdf$/i,"")+"_已簽名.pdf";
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  }catch(err){ alert("匯出失敗："+err.message); console.error(err); }
+  finally{ ov.remove(); }
+});
+</script>
+</body>
+</html>
